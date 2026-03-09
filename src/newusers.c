@@ -1175,18 +1175,16 @@ int main (int argc, char **argv)
 
 #ifdef ENABLE_SUBIDS
 		{
-			char *sub_uid_owner_str = NULL;
-			char *sub_gid_owner_str = NULL;
-			const char *sub_uid_owner = fields[0];
-			const char *sub_gid_owner = fields[0];
+			char *sub_uid_owner = xstrdup (fields[0]);
+			char *sub_gid_owner = xstrdup (fields[0]);
 
 			if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
-				sub_uid_owner_str = xaprintf ("%u", (unsigned int) newpw.pw_uid);
-				sub_uid_owner = sub_uid_owner_str;
+				free (sub_uid_owner);
+				sub_uid_owner = xaprintf ("%u", (unsigned int) newpw.pw_uid);
 			}
 			if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
-				sub_gid_owner_str = xaprintf ("%u", (unsigned int) newpw.pw_uid);
-				sub_gid_owner = sub_gid_owner_str;
+				free (sub_gid_owner);
+				sub_gid_owner = xaprintf ("%u", (unsigned int) newpw.pw_uid);
 			}
 
 			/*
@@ -1200,8 +1198,8 @@ int main (int argc, char **argv)
 					fprintf (stderr,
 						_("%s: can't find subordinate user range\n"),
 						Prog);
-					free (sub_uid_owner_str);
-					free (sub_gid_owner_str);
+					free (sub_uid_owner);
+					free (sub_gid_owner);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 				if (sub_uid_add(sub_uid_owner, sub_uid_start, sub_uid_count) == 0)
@@ -1209,8 +1207,8 @@ int main (int argc, char **argv)
 					fprintf (stderr,
 						_("%s: failed to prepare new %s entry\n"),
 						Prog, sub_uid_dbname ());
-					free (sub_uid_owner_str);
-					free (sub_gid_owner_str);
+					free (sub_uid_owner);
+					free (sub_gid_owner);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 			}
@@ -1225,22 +1223,22 @@ int main (int argc, char **argv)
 					fprintf (stderr,
 						_("%s: can't find subordinate group range\n"),
 						Prog);
-					free (sub_uid_owner_str);
-					free (sub_gid_owner_str);
+					free (sub_uid_owner);
+					free (sub_gid_owner);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 				if (sub_gid_add(sub_gid_owner, sub_gid_start, sub_gid_count) == 0) {
 					fprintf (stderr,
 						_("%s: failed to prepare new %s entry\n"),
 						Prog, sub_uid_dbname ());
-					free (sub_uid_owner_str);
-					free (sub_gid_owner_str);
+					free (sub_uid_owner);
+					free (sub_gid_owner);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 			}
 
-			free (sub_uid_owner_str);
-			free (sub_gid_owner_str);
+			free (sub_uid_owner);
+			free (sub_gid_owner);
 		}
 #endif				/* ENABLE_SUBIDS */
 	}

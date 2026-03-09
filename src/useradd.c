@@ -2169,18 +2169,16 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 	}
 #ifdef ENABLE_SUBIDS
 	{
-		char *sub_uid_owner_str = NULL;
-		char *sub_gid_owner_str = NULL;
-		const char *sub_uid_owner = user_name;
-		const char *sub_gid_owner = user_name;
+		char *sub_uid_owner = xstrdup (user_name);
+		char *sub_gid_owner = xstrdup (user_name);
 
 		if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
-			sub_uid_owner_str = xaprintf ("%u", (unsigned int) user_id);
-			sub_uid_owner = sub_uid_owner_str;
+			free (sub_uid_owner);
+			sub_uid_owner = xaprintf ("%u", (unsigned int) user_id);
 		}
 		if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
-			sub_gid_owner_str = xaprintf ("%u", (unsigned int) user_id);
-			sub_gid_owner = sub_gid_owner_str;
+			free (sub_gid_owner);
+			sub_gid_owner = xaprintf ("%u", (unsigned int) user_id);
 		}
 
 		if (is_sub_uid && !local_sub_uid_assigned(sub_uid_owner) &&
@@ -2188,8 +2186,8 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 			fprintf (stderr,
 			         _("%s: failed to prepare the new %s entry\n"),
 			         Prog, sub_uid_dbname ());
-			free (sub_uid_owner_str);
-			free (sub_gid_owner_str);
+			free (sub_uid_owner);
+			free (sub_gid_owner);
 			fail_exit (E_SUB_UID_UPDATE, process_selinux);
 		}
 		if (is_sub_gid && !local_sub_gid_assigned(sub_gid_owner) &&
@@ -2197,13 +2195,13 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 			fprintf (stderr,
 			         _("%s: failed to prepare the new %s entry\n"),
 			         Prog, sub_uid_dbname ());
-			free (sub_uid_owner_str);
-			free (sub_gid_owner_str);
+			free (sub_uid_owner);
+			free (sub_gid_owner);
 			fail_exit (E_SUB_GID_UPDATE, process_selinux);
 		}
 
-		free (sub_uid_owner_str);
-		free (sub_gid_owner_str);
+		free (sub_uid_owner);
+		free (sub_gid_owner);
 	}
 #endif				/* ENABLE_SUBIDS */
 
