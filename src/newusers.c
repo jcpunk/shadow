@@ -1175,17 +1175,12 @@ int main (int argc, char **argv)
 
 #ifdef ENABLE_SUBIDS
 		{
-			char *sub_uid_owner = xstrdup (fields[0]);
-			char *sub_gid_owner = xstrdup (fields[0]);
-
-			if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
-				free (sub_uid_owner);
-				sub_uid_owner = xaprintf ("%u", (unsigned int) newpw.pw_uid);
-			}
-			if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
-				free (sub_gid_owner);
-				sub_gid_owner = xaprintf ("%u", (unsigned int) newpw.pw_uid);
-			}
+			char *sub_uid_owner = getdef_bool ("SUB_UID_STORE_BY_UID")
+			                      ? xaprintf ("%u", (unsigned int) newpw.pw_uid)
+			                      : xstrdup (fields[0]);
+			char *sub_gid_owner = getdef_bool ("SUB_GID_STORE_BY_UID")
+			                      ? xaprintf ("%u", (unsigned int) newpw.pw_uid)
+			                      : xstrdup (fields[0]);
 
 			/*
 			 * Add subordinate uids if the user does not have them.

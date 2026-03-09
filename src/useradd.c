@@ -2169,17 +2169,12 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 	}
 #ifdef ENABLE_SUBIDS
 	{
-		char *sub_uid_owner = xstrdup (user_name);
-		char *sub_gid_owner = xstrdup (user_name);
-
-		if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
-			free (sub_uid_owner);
-			sub_uid_owner = xaprintf ("%u", (unsigned int) user_id);
-		}
-		if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
-			free (sub_gid_owner);
-			sub_gid_owner = xaprintf ("%u", (unsigned int) user_id);
-		}
+		char *sub_uid_owner = getdef_bool ("SUB_UID_STORE_BY_UID")
+		                      ? xaprintf ("%u", (unsigned int) user_id)
+		                      : xstrdup (user_name);
+		char *sub_gid_owner = getdef_bool ("SUB_GID_STORE_BY_UID")
+		                      ? xaprintf ("%u", (unsigned int) user_id)
+		                      : xstrdup (user_name);
 
 		if (is_sub_uid && !local_sub_uid_assigned(sub_uid_owner) &&
 		    (sub_uid_add(sub_uid_owner, sub_uid_start, subuid_count) == 0)) {
