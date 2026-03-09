@@ -1173,45 +1173,63 @@ int main (int argc, char **argv)
 		}
 
 #ifdef ENABLE_SUBIDS
-		/*
-		 * Add subordinate uids if the user does not have them.
-		 */
-		if (is_sub_uid && !local_sub_uid_assigned(fields[0])) {
-			uid_t sub_uid_start = 0;
-			unsigned long sub_uid_count = 0;
-			if (find_new_sub_uids(&sub_uid_start, &sub_uid_count) != 0)
-			{
-				fprintf (stderr,
-					_("%s: can't find subordinate user range\n"),
-					Prog);
-				fail_exit (EXIT_FAILURE, process_selinux);
-			}
-			if (sub_uid_add(fields[0], sub_uid_start, sub_uid_count) == 0)
-			{
-				fprintf (stderr,
-					_("%s: failed to prepare new %s entry\n"),
-					Prog, sub_uid_dbname ());
-				fail_exit (EXIT_FAILURE, process_selinux);
-			}
-		}
+		{
+			char sub_uid_owner_buf[32];
+			char sub_gid_owner_buf[32];
+			const char *sub_uid_owner = fields[0];
+			const char *sub_gid_owner = fields[0];
 
-		/*
-		 * Add subordinate gids if the user does not have them.
-		 */
-		if (is_sub_gid && !local_sub_gid_assigned(fields[0])) {
-			gid_t sub_gid_start = 0;
-			unsigned long sub_gid_count = 0;
-			if (find_new_sub_gids(&sub_gid_start, &sub_gid_count) != 0) {
-				fprintf (stderr,
-					_("%s: can't find subordinate group range\n"),
-					Prog);
-				fail_exit (EXIT_FAILURE, process_selinux);
+			if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
+				snprintf (sub_uid_owner_buf, sizeof (sub_uid_owner_buf),
+				          "%u", (unsigned int) newpw.pw_uid);
+				sub_uid_owner = sub_uid_owner_buf;
 			}
-			if (sub_gid_add(fields[0], sub_gid_start, sub_gid_count) == 0) {
-				fprintf (stderr,
-					_("%s: failed to prepare new %s entry\n"),
-					Prog, sub_uid_dbname ());
-				fail_exit (EXIT_FAILURE, process_selinux);
+			if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
+				snprintf (sub_gid_owner_buf, sizeof (sub_gid_owner_buf),
+				          "%u", (unsigned int) newpw.pw_uid);
+				sub_gid_owner = sub_gid_owner_buf;
+			}
+
+			/*
+			 * Add subordinate uids if the user does not have them.
+			 */
+			if (is_sub_uid && !local_sub_uid_assigned(sub_uid_owner)) {
+				uid_t sub_uid_start = 0;
+				unsigned long sub_uid_count = 0;
+				if (find_new_sub_uids(&sub_uid_start, &sub_uid_count) != 0)
+				{
+					fprintf (stderr,
+						_("%s: can't find subordinate user range\n"),
+						Prog);
+					fail_exit (EXIT_FAILURE, process_selinux);
+				}
+				if (sub_uid_add(sub_uid_owner, sub_uid_start, sub_uid_count) == 0)
+				{
+					fprintf (stderr,
+						_("%s: failed to prepare new %s entry\n"),
+						Prog, sub_uid_dbname ());
+					fail_exit (EXIT_FAILURE, process_selinux);
+				}
+			}
+
+			/*
+			 * Add subordinate gids if the user does not have them.
+			 */
+			if (is_sub_gid && !local_sub_gid_assigned(sub_gid_owner)) {
+				gid_t sub_gid_start = 0;
+				unsigned long sub_gid_count = 0;
+				if (find_new_sub_gids(&sub_gid_start, &sub_gid_count) != 0) {
+					fprintf (stderr,
+						_("%s: can't find subordinate group range\n"),
+						Prog);
+					fail_exit (EXIT_FAILURE, process_selinux);
+				}
+				if (sub_gid_add(sub_gid_owner, sub_gid_start, sub_gid_count) == 0) {
+					fprintf (stderr,
+						_("%s: failed to prepare new %s entry\n"),
+						Prog, sub_uid_dbname ());
+					fail_exit (EXIT_FAILURE, process_selinux);
+				}
 			}
 		}
 #endif				/* ENABLE_SUBIDS */
