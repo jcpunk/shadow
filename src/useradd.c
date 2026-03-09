@@ -2169,20 +2169,18 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 	}
 #ifdef ENABLE_SUBIDS
 	{
-		char sub_uid_owner_buf[32];
-		char sub_gid_owner_buf[32];
+		char *sub_uid_owner_str = NULL;
+		char *sub_gid_owner_str = NULL;
 		const char *sub_uid_owner = user_name;
 		const char *sub_gid_owner = user_name;
 
 		if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
-			snprintf (sub_uid_owner_buf, sizeof (sub_uid_owner_buf),
-			          "%u", (unsigned int) user_id);
-			sub_uid_owner = sub_uid_owner_buf;
+			sub_uid_owner_str = xaprintf ("%u", (unsigned int) user_id);
+			sub_uid_owner = sub_uid_owner_str;
 		}
 		if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
-			snprintf (sub_gid_owner_buf, sizeof (sub_gid_owner_buf),
-			          "%u", (unsigned int) user_id);
-			sub_gid_owner = sub_gid_owner_buf;
+			sub_gid_owner_str = xaprintf ("%u", (unsigned int) user_id);
+			sub_gid_owner = sub_gid_owner_str;
 		}
 
 		if (is_sub_uid && !local_sub_uid_assigned(sub_uid_owner) &&
@@ -2199,6 +2197,9 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 			         Prog, sub_uid_dbname ());
 			fail_exit (E_SUB_GID_UPDATE, process_selinux);
 		}
+
+		free (sub_uid_owner_str);
+		free (sub_gid_owner_str);
 	}
 #endif				/* ENABLE_SUBIDS */
 

@@ -51,6 +51,7 @@
 #include "shadow/gshadow/sgrp.h"
 #include "shadowlog.h"
 #include "sssd.h"
+#include "string/sprintf/aprintf.h"
 #include "string/sprintf/snprintf.h"
 #include "string/strcmp/streq.h"
 #include "string/strdup/strdup.h"
@@ -1174,20 +1175,18 @@ int main (int argc, char **argv)
 
 #ifdef ENABLE_SUBIDS
 		{
-			char sub_uid_owner_buf[32];
-			char sub_gid_owner_buf[32];
+			char *sub_uid_owner_str = NULL;
+			char *sub_gid_owner_str = NULL;
 			const char *sub_uid_owner = fields[0];
 			const char *sub_gid_owner = fields[0];
 
 			if (getdef_bool ("SUB_UID_STORE_BY_UID")) {
-				snprintf (sub_uid_owner_buf, sizeof (sub_uid_owner_buf),
-				          "%u", (unsigned int) newpw.pw_uid);
-				sub_uid_owner = sub_uid_owner_buf;
+				sub_uid_owner_str = xaprintf ("%u", (unsigned int) newpw.pw_uid);
+				sub_uid_owner = sub_uid_owner_str;
 			}
 			if (getdef_bool ("SUB_GID_STORE_BY_UID")) {
-				snprintf (sub_gid_owner_buf, sizeof (sub_gid_owner_buf),
-				          "%u", (unsigned int) newpw.pw_uid);
-				sub_gid_owner = sub_gid_owner_buf;
+				sub_gid_owner_str = xaprintf ("%u", (unsigned int) newpw.pw_uid);
+				sub_gid_owner = sub_gid_owner_str;
 			}
 
 			/*
@@ -1231,6 +1230,9 @@ int main (int argc, char **argv)
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 			}
+
+			free (sub_uid_owner_str);
+			free (sub_gid_owner_str);
 		}
 #endif				/* ENABLE_SUBIDS */
 	}
