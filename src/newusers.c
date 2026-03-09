@@ -1200,6 +1200,8 @@ int main (int argc, char **argv)
 					fprintf (stderr,
 						_("%s: can't find subordinate user range\n"),
 						Prog);
+					free (sub_uid_owner_str);
+					free (sub_gid_owner_str);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 				if (sub_uid_add(sub_uid_owner, sub_uid_start, sub_uid_count) == 0)
@@ -1207,6 +1209,8 @@ int main (int argc, char **argv)
 					fprintf (stderr,
 						_("%s: failed to prepare new %s entry\n"),
 						Prog, sub_uid_dbname ());
+					free (sub_uid_owner_str);
+					free (sub_gid_owner_str);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 			}
@@ -1221,12 +1225,16 @@ int main (int argc, char **argv)
 					fprintf (stderr,
 						_("%s: can't find subordinate group range\n"),
 						Prog);
+					free (sub_uid_owner_str);
+					free (sub_gid_owner_str);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 				if (sub_gid_add(sub_gid_owner, sub_gid_start, sub_gid_count) == 0) {
 					fprintf (stderr,
 						_("%s: failed to prepare new %s entry\n"),
 						Prog, sub_uid_dbname ());
+					free (sub_uid_owner_str);
+					free (sub_gid_owner_str);
 					fail_exit (EXIT_FAILURE, process_selinux);
 				}
 			}

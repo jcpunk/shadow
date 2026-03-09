@@ -2188,6 +2188,8 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 			fprintf (stderr,
 			         _("%s: failed to prepare the new %s entry\n"),
 			         Prog, sub_uid_dbname ());
+			free (sub_uid_owner_str);
+			free (sub_gid_owner_str);
 			fail_exit (E_SUB_UID_UPDATE, process_selinux);
 		}
 		if (is_sub_gid && !local_sub_gid_assigned(sub_gid_owner) &&
@@ -2195,6 +2197,8 @@ usr_update (unsigned long subuid_count, unsigned long subgid_count,
 			fprintf (stderr,
 			         _("%s: failed to prepare the new %s entry\n"),
 			         Prog, sub_uid_dbname ());
+			free (sub_uid_owner_str);
+			free (sub_gid_owner_str);
 			fail_exit (E_SUB_GID_UPDATE, process_selinux);
 		}
 
