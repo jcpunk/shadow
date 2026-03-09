@@ -1004,7 +1004,7 @@ static void grp_update (bool process_selinux)
 {
 	update_group_file(process_selinux);
 #ifdef SHADOWGRP
-	if (is_shadow_grp) {
+	if (sgr_locked) {
 		update_gshadow_file(process_selinux);
 	}
 #endif
@@ -2241,94 +2241,100 @@ int main (int argc, char **argv)
 	 * change the home directory, then close and update the files.
 	 */
 	open_files (process_selinux);
-	if (   cflg || dflg || eflg || fflg || gflg || Lflg || lflg || pflg
-	    || sflg || uflg || Uflg) {
+	if (pw_locked) {
 		usr_update (&flags);
 	}
-	if (Gflg || lflg) {
+	if (gr_locked) {
 		grp_update (process_selinux);
 	}
 #ifdef ENABLE_SUBIDS
-	if (Sflg) {
-		if (find_range (&add_sub_uids, find_new_sub_uids) == 0) {
-			fprintf (stderr,
-				_("%s: unable to find new subordinate uid range\n"),
-				Prog);
-			fail_exit (E_SUB_UID_UPDATE, process_selinux);
-		}
-		if (find_range (&add_sub_gids, find_new_sub_gids) == 0) {
-			fprintf (stderr,
-				_("%s: unable to find new subordinate gid range\n"),
-				Prog);
-			fail_exit (E_SUB_GID_UPDATE, process_selinux);
-		}
-	}
-
-	if (Vflg) {
-		struct id_range_list_entry  *ptr;
-
-		for (ptr = del_sub_uids; ptr != NULL; ptr = ptr->next) {
-			id_t  count = ptr->range.last - ptr->range.first + 1;
-
-			if (sub_uid_remove(user_name, ptr->range.first, count) == 0) {
-				fprintf(stderr,
-				        _("%s: failed to remove uid range %ju-%ju from '%s'\n"),
-				        Prog,
-				        (uintmax_t) ptr->range.first,
-				        (uintmax_t) ptr->range.last,
-				        sub_uid_dbname());
+	if (sub_uid_locked) {
+		if (Sflg) {
+			if (find_range (&add_sub_uids, find_new_sub_uids) == 0) {
+				fprintf (stderr,
+					_("%s: unable to find new subordinate uid range\n"),
+					Prog);
 				fail_exit (E_SUB_UID_UPDATE, process_selinux);
 			}
 		}
-	}
-	if (vflg) {
-		struct id_range_list_entry  *ptr;
 
-		for (ptr = add_sub_uids; ptr != NULL; ptr = ptr->next) {
-			id_t  count = ptr->range.last - ptr->range.first + 1;
+		if (Vflg) {
+			struct id_range_list_entry  *ptr;
 
-			if (sub_uid_add(user_name, ptr->range.first, count) == 0) {
-				fprintf(stderr,
-				        _("%s: failed to add uid range %ju-%ju to '%s'\n"),
-				        Prog,
-				        (uintmax_t) ptr->range.first,
-				        (uintmax_t) ptr->range.last,
-				        sub_uid_dbname());
-				fail_exit (E_SUB_UID_UPDATE, process_selinux);
+			for (ptr = del_sub_uids; ptr != NULL; ptr = ptr->next) {
+				id_t  count = ptr->range.last - ptr->range.first + 1;
+
+				if (sub_uid_remove(user_name, ptr->range.first, count) == 0) {
+					fprintf(stderr,
+					        _("%s: failed to remove uid range %ju-%ju from '%s'\n"),
+					        Prog,
+					        (uintmax_t) ptr->range.first,
+					        (uintmax_t) ptr->range.last,
+					        sub_uid_dbname());
+					fail_exit (E_SUB_UID_UPDATE, process_selinux);
+				}
+			}
+		}
+		if (vflg) {
+			struct id_range_list_entry  *ptr;
+
+			for (ptr = add_sub_uids; ptr != NULL; ptr = ptr->next) {
+				id_t  count = ptr->range.last - ptr->range.first + 1;
+
+				if (sub_uid_add(user_name, ptr->range.first, count) == 0) {
+					fprintf(stderr,
+					        _("%s: failed to add uid range %ju-%ju to '%s'\n"),
+					        Prog,
+					        (uintmax_t) ptr->range.first,
+					        (uintmax_t) ptr->range.last,
+					        sub_uid_dbname());
+					fail_exit (E_SUB_UID_UPDATE, process_selinux);
+				}
 			}
 		}
 	}
-	if (Wflg) {
-		struct id_range_list_entry  *ptr;
-
-		for (ptr = del_sub_gids; ptr != NULL; ptr = ptr->next) {
-			id_t  count = ptr->range.last - ptr->range.first + 1;
-
-			if (sub_gid_remove(user_name, ptr->range.first, count) == 0) {
-				fprintf(stderr,
-				        _("%s: failed to remove gid range %ju-%ju from '%s'\n"),
-				        Prog,
-				        (uintmax_t) ptr->range.first,
-				        (uintmax_t) ptr->range.last,
-				        sub_gid_dbname());
+	if (sub_gid_locked) {
+		if (Sflg) {
+			if (find_range (&add_sub_gids, find_new_sub_gids) == 0) {
+				fprintf (stderr,
+					_("%s: unable to find new subordinate gid range\n"),
+					Prog);
 				fail_exit (E_SUB_GID_UPDATE, process_selinux);
 			}
 		}
-	}
-	if (wflg) {
-		struct id_range_list_entry  *ptr;
 
-		for (ptr = add_sub_gids; ptr != NULL; ptr = ptr->next) {
-			id_t  count = ptr->range.last - ptr->range.first + 1;
+		if (Wflg) {
+			struct id_range_list_entry  *ptr;
 
-			if (sub_gid_add(user_name, ptr->range.first, count) == 0) {
-				fprintf(stderr,
-				        _("%s: failed to add gid range %ju-%ju to '%s'\n"),
-				        Prog,
-				        (uintmax_t) ptr->range.first,
-				        (uintmax_t) ptr->range.last,
-				        sub_gid_dbname());
-				fail_exit (E_SUB_GID_UPDATE, process_selinux);
+			for (ptr = del_sub_gids; ptr != NULL; ptr = ptr->next) {
+				id_t  count = ptr->range.last - ptr->range.first + 1;
+
+				if (sub_gid_remove(user_name, ptr->range.first, count) == 0) {
+					fprintf(stderr,
+					        _("%s: failed to remove gid range %ju-%ju from '%s'\n"),
+					        Prog,
+					        (uintmax_t) ptr->range.first,
+					        (uintmax_t) ptr->range.last,
+					        sub_gid_dbname());
+					fail_exit (E_SUB_GID_UPDATE, process_selinux);
+				}
+			}
+		}
+		if (wflg) {
+			struct id_range_list_entry  *ptr;
+
+			for (ptr = add_sub_gids; ptr != NULL; ptr = ptr->next) {
+				id_t  count = ptr->range.last - ptr->range.first + 1;
+
+				if (sub_gid_add(user_name, ptr->range.first, count) == 0) {
+					fprintf(stderr,
+					        _("%s: failed to add gid range %ju-%ju to '%s'\n"),
+					        Prog,
+					        (uintmax_t) ptr->range.first,
+					        (uintmax_t) ptr->range.last,
+					        sub_gid_dbname());
+					fail_exit (E_SUB_GID_UPDATE, process_selinux);
+				}
 			}
 		}
 	}
