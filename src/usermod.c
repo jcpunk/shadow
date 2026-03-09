@@ -1678,7 +1678,7 @@ static void open_files (bool process_selinux)
 			fail_exit (E_GRP_UPDATE, process_selinux);
 		}
 #ifdef SHADOWGRP
-		if (is_shadow_grp) {
+		if (is_shadow_grp && (Gflg || lflg)) {
 			if (sgr_lock () == 0) {
 				fprintf (stderr,
 				         _("%s: cannot lock %s; try again later.\n"),
