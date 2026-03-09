@@ -34,7 +34,7 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_LN_S
 LT_INIT
-dnl LT_LIB_DLLOAD
+LT_LIB_DLLOAD
 
 dnl Checks for libraries.
 
