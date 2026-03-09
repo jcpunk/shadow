@@ -1540,10 +1540,6 @@ static void close_files(const struct option_flags *flags)
 				       sgr_dbname());
 				fail_exit (E_GRP_UPDATE, process_selinux);
 			}
-		}
-#endif
-#ifdef SHADOWGRP
-		if (sgr_locked) {
 			if (sgr_unlock (process_selinux) == 0) {
 				fprintf (stderr,
 				         _("%s: failed to unlock %s\n"),
