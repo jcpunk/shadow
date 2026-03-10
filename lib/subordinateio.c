@@ -337,6 +337,56 @@ static int subordinate_range_cmp (const void *p1, const void *p2)
 }
 
 /*
+ * subid_owner_match: test whether two strings identify the same user.
+ *
+ * @a: user identifier (username or numeric UID string)
+ * @b: user identifier (username or numeric UID string)
+ *
+ * Each identifier is resolved to uid_t via getpwnam(3) and compared
+ * numerically. Accepts usernames, numeric UIDs, or a mix of both.
+ *
+ * Numeric resolution ensures stale entries for deleted users cannot
+ * produce false matches, and handles systems with overlapping UIDs.
+ *
+ * We do not perform a streq(3) on the passed strings themselves.
+ * In this way we ensure the user is resolvable on the system
+ * eliminating the ability to return results from deleted users
+ * with stale entries.
+ *
+ * Returns false if either identifier cannot be resolved, or if the
+ * resolved UIDs do not match.
+ */
+static bool
+subid_owner_match(const char *a, const char *b)
+{
+	uid_t  id_a;
+	uid_t  id_b;
+
+	if (streq(a, b))
+		return true;
+
+	if (str2ui(&id_a, a) == -1) {
+		const struct passwd  *pw;
+
+		pw = getpwnam(a);
+		if (NULL == pw)
+			return false;
+		id_a = pw->pw_uid;
+	}
+
+	if (str2ui(&id_b, b) == -1) {
+		const struct passwd  *pw;
+
+		pw = getpwnam(b);
+		if (NULL == pw)
+			return false;
+		id_b = pw->pw_uid;
+	}
+
+	return id_a == id_b;
+}
+
+/*
  * find_free_range: find an unused consecutive sequence of ids to allocate
  *                  to a user.
  * @db: database to search
