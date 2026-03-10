@@ -9,26 +9,28 @@
 #ifdef ENABLE_SUBIDS
 
 #include <assert.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 
-#include "prototypes.h"
-#include "subordinateio.h"
 #include "getdef.h"
+#include "prototypes.h"
 #include "shadowlog.h"
+#include "subordinateio.h"
 
 /*
- * find_new_sub_uids - Find a new unused range of UIDs.
+ * find_new_sub_uids_linear - Find an unused subordinate UID range via
+ * linear search.
  *
- * If successful, find_new_sub_uids provides a range of unused
- * user IDs in the [SUB_UID_MIN:SUB_UID_MAX] range.
+ * Loads SUB_UID_COUNT from login.defs and writes the allocated count back
+ * to *range_count on success.
  *
  * Return 0 on success, -1 if no unused UIDs are available.
  */
-int find_new_sub_uids (id_t *range_start, unsigned long *range_count)
+static int find_new_sub_uids_linear (id_t *range_start, unsigned long *range_count)
 {
-	unsigned long min, max;
-	unsigned long count;
+	unsigned long min, max, count;
 	id_t start;
 
 	assert (range_start != NULL);
@@ -36,29 +38,45 @@ int find_new_sub_uids (id_t *range_start, unsigned long *range_count)
 
 	min = getdef_ulong ("SUB_UID_MIN", 100000UL);
 	max = getdef_ulong ("SUB_UID_MAX", 600100000UL);
-	count = getdef_ulong ("SUB_UID_COUNT", 65536);
+	count = getdef_ulong ("SUB_UID_COUNT", 65536UL);
 
-	if (min > max || count >= max || (min + count - 1) > max) {
-		(void) fprintf (log_get_logfd(),
-				_("%s: Invalid configuration: SUB_UID_MIN (%lu),"
-				  " SUB_UID_MAX (%lu), SUB_UID_COUNT (%lu)\n"),
-			log_get_progname(), min, max, count);
+	if (count == 0 || min > max || count > (max - min + 1)) {
+		fprintf (log_get_logfd (),
+		         _("%s: Invalid configuration: SUB_UID_MIN (%lu),"
+		           " SUB_UID_MAX (%lu), SUB_UID_COUNT (%lu)\n"),
+		         log_get_progname (), min, max, count);
 		return -1;
 	}
 
-	start = sub_uid_find_free_range(min, max, count);
+	start = sub_uid_find_free_range (min, max, count);
 	if (start == (id_t)-1) {
-		fprintf (log_get_logfd(),
+		fprintf (log_get_logfd (),
 		         _("%s: Can't get unique subordinate UID range\n"),
-		         log_get_progname());
-		SYSLOG(LOG_WARN, "no more available subordinate UIDs on the system");
+		         log_get_progname ());
+		SYSLOG ((LOG_WARN, "no more available subordinate UIDs on the system"));
 		return -1;
 	}
+
 	*range_start = start;
 	*range_count = count;
 	return 0;
 }
+
+/*
+ * find_new_sub_uids - Find a new unused range of subordinate UIDs.
+ *
+ * Return 0 on success, -1 if no unused UIDs are available.
+ */
+int find_new_sub_uids (uid_t uid, id_t *range_start, unsigned long *range_count)
+{
+	if (!range_start || !range_count) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return find_new_sub_uids_linear (range_start, range_count);
+}
+
 #else				/* !ENABLE_SUBIDS */
 extern int ISO_C_forbids_an_empty_translation_unit;
 #endif				/* !ENABLE_SUBIDS */
-

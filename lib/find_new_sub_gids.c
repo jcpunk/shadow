@@ -9,23 +9,26 @@
 #ifdef ENABLE_SUBIDS
 
 #include <assert.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 
-#include "prototypes.h"
-#include "subordinateio.h"
 #include "getdef.h"
+#include "prototypes.h"
 #include "shadowlog.h"
+#include "subordinateio.h"
 
 /*
- * find_new_sub_gids - Find a new unused range of GIDs.
+ * find_new_sub_gids_linear - Find an unused subordinate GID range via
+ * linear search.
  *
- * If successful, find_new_sub_gids provides a range of unused
- * user IDs in the [SUB_GID_MIN:SUB_GID_MAX] range.
+ * Loads SUB_GID_COUNT from login.defs and writes the allocated count back
+ * to *range_count on success.
  *
  * Return 0 on success, -1 if no unused GIDs are available.
  */
-int find_new_sub_gids (id_t *range_start, unsigned long *range_count)
+static int find_new_sub_gids_linear (id_t *range_start, unsigned long *range_count)
 {
 	unsigned long min, max;
 	unsigned long count;
@@ -36,19 +39,19 @@ int find_new_sub_gids (id_t *range_start, unsigned long *range_count)
 
 	min = getdef_ulong ("SUB_GID_MIN", 100000UL);
 	max = getdef_ulong ("SUB_GID_MAX", 600100000UL);
-	count = getdef_ulong ("SUB_GID_COUNT", 65536);
+	count = getdef_ulong ("SUB_GID_COUNT", 65536UL);
 
-	if (min > max || count >= max || (min + count - 1) > max) {
+	if (count == 0 || min > max || count > (max - min + 1)) {
 		(void) fprintf (log_get_logfd(),
-				_("%s: Invalid configuration: SUB_GID_MIN (%lu),"
-				  " SUB_GID_MAX (%lu), SUB_GID_COUNT (%lu)\n"),
+			_("%s: Invalid configuration: SUB_GID_MIN (%lu),"
+			" SUB_GID_MAX (%lu), SUB_GID_COUNT (%lu)\n"),
 			log_get_progname(), min, max, count);
 		return -1;
 	}
 
 	start = sub_gid_find_free_range(min, max, count);
 	if (start == (id_t)-1) {
-		fprintf (log_get_logfd(),
+		fprintf(log_get_logfd(),
 		         _("%s: Can't get unique subordinate GID range\n"),
 		         log_get_progname());
 		SYSLOG(LOG_WARN, "no more available subordinate GIDs on the system");
@@ -58,7 +61,22 @@ int find_new_sub_gids (id_t *range_start, unsigned long *range_count)
 	*range_count = count;
 	return 0;
 }
+
+/*
+ * find_new_sub_gids - Find a new unused range of subordinate GIDs.
+ *
+ * Return 0 on success, -1 if no unused GIDs are available.
+ */
+int find_new_sub_gids (uid_t uid, id_t *range_start, unsigned long *range_count)
+{
+	if (!range_start || !range_count) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return find_new_sub_gids_linear (range_start, range_count);
+}
+
 #else				/* !ENABLE_SUBIDS */
 extern int ISO_C_forbids_an_empty_translation_unit;
 #endif				/* !ENABLE_SUBIDS */
-
