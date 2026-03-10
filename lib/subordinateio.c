@@ -337,6 +337,48 @@ static int subordinate_range_cmp (const void *p1, const void *p2)
 }
 
 /*
+ * subid_owner_match: test whether two values refer to the same user.
+ *
+ * @a: first owner string (username or numeric UID)
+ * @b: second owner string (username or numeric UID)
+ *
+ * An exact string match has a quick return. Otherwise both strings
+ * are resolved to uid_t via getpwnam and compared numerically.
+ * This should account for users with overlaping UIDs.
+ *
+ * Return false if no match or either string cannot be resolved.
+ */
+static bool
+subid_owner_match(const char *a, const char *b)
+{
+	uid_t id_a;
+	uid_t id_b;
+
+	if (streq(a, b))
+		return true;
+
+	if (str2ui(&id_a, a) == -1) {
+		const struct passwd *pw;
+
+		pw = getpwnam(a);
+		if (NULL == pw)
+			return false;
+		id_a = pw->pw_uid;
+	}
+
+	if (str2ui(&id_b, b) == -1) {
+		const struct passwd *pw;
+
+		pw = getpwnam(b);
+		if (NULL == pw)
+			return false;
+		id_b = pw->pw_uid;
+	}
+
+	return id_a == id_b;
+}
+
+/*
  * find_free_range: find an unused consecutive sequence of ids to allocate
  *                  to a user.
  * @db: database to search
