@@ -20,6 +20,175 @@
 #include "subordinateio.h"
 
 /*
+ * find_new_sub_uids_deterministic - Assign a subordinate UID range by UID.
+ *
+ * Calculates a deterministic subordinate UID range for a given UID based
+ * on its offset from UID_MIN.  Loads SUB_UID_COUNT from login.defs and
+ * writes it back to *range_count on success.
+ *
+ * BASE FORMULA:
+ *   uid_offset     = uid - UID_MIN
+ *   logical_offset = uid_offset * SUB_UID_COUNT
+ *   start_id       = SUB_UID_MIN + logical_offset
+ *   end_id         = start_id + SUB_UID_COUNT - 1
+ *
+ * DETERMINISTIC-SAFE MODE (default):
+ *   All arithmetic overflow is a hard error.  The assigned range must fit
+ *   entirely within [SUB_UID_MIN, SUB_UID_MAX].  Allocation is monotonic
+ *   and guaranteed non-overlapping.
+ *
+ * UNSAFE_SUB_UID_DETERMINISTIC_WRAP MODE:
+ *   Activated with UNSAFE_SUB_UID_DETERMINISTIC_WRAP yes
+ *
+ *   WARNING: SECURITY RISK!
+ *   WARNING: MAY CAUSE RANGE OVERLAPS!
+ *   WARNING: MAY CAUSE CONTAINER ESCAPES!
+ *
+ *   The subordinate UID space is treated as a ring.  Arithmetic overflow
+ *   is normalised via modulo over [SUB_UID_MIN, SUB_UID_MAX].
+ *   This means ranges MAY overlap for large UID populations!
+ *   Intended only for development, testing, or constrained lab environments.
+ *
+ * Return 0 on success, -1 if no UIDs are available.
+ */
+static int find_new_sub_uids_deterministic (uid_t uid,
+                                            id_t *range_start,
+                                            unsigned long *range_count)
+{
+	unsigned long uid_min;
+	unsigned long sub_uid_min;
+	unsigned long sub_uid_max;
+	unsigned long uid_offset;
+	unsigned long space;
+	unsigned long count;
+	bool allow_wrap;
+
+	assert (range_start != NULL);
+	assert (range_count != NULL);
+
+	uid_min = getdef_ulong ("UID_MIN", 1000UL);
+	sub_uid_min = getdef_ulong ("SUB_UID_MIN", 65536UL);
+	sub_uid_max = getdef_ulong ("SUB_UID_MAX", 4294967295UL);
+	count = getdef_ulong ("SUB_UID_COUNT", 65536UL);
+	allow_wrap = getdef_bool  ("UNSAFE_SUB_UID_DETERMINISTIC_WRAP");
+
+	if ((unsigned long)uid < uid_min) {
+		fprintf (log_get_logfd (),
+		         _("%s: UID %lu is less than UID_MIN %lu,"
+		           " cannot calculate deterministic subordinate UIDs\n"),
+		         log_get_progname (),
+		         (unsigned long)uid, uid_min);
+		return -1;
+	}
+
+	/*
+	 * Validate configuration before using min/max in any arithmetic.
+	 * If sub_uid_min > sub_uid_max, the space calculation below would
+	 * unsigned-wrap and silently produce a nonsense value.
+	 */
+	if (sub_uid_min > sub_uid_max || count == 0) {
+		fprintf (log_get_logfd (),
+		         _("%s: Invalid configuration: SUB_UID_MIN (%lu),"
+		           " SUB_UID_MAX (%lu), SUB_UID_COUNT (%lu)\n"),
+		         log_get_progname (),
+		         sub_uid_min, sub_uid_max, count);
+		return -1;
+	}
+
+	uid_offset = (unsigned long)uid - uid_min;
+	space = sub_uid_max - sub_uid_min + 1;
+
+	/*
+	 * A range larger than the entire configured space can never be placed
+	 * without overlap, regardless of mode.
+	 */
+	if (count > space) {
+		fprintf (log_get_logfd (),
+		         _("%s: Not enough space for any subordinate UIDs"
+		           " (SUB_UID_MIN=%lu, SUB_UID_MAX=%lu,"
+		           " SUB_UID_COUNT=%lu)\n"),
+		         log_get_progname (),
+		         sub_uid_min, sub_uid_max, count);
+		return -1;
+	}
+
+	if (!allow_wrap) {
+		/*
+		 * DETERMINISTIC-SAFE MODE
+		 *
+		 * Three overflow guards are required:
+		 *
+		 *   1. uid_offset * count  -> product
+		 *      Overflows for large UIDs or large counts.
+		 *
+		 *   2. sub_uid_min + product -> start_id
+		 *      Overflows when the offset pushes start past UINTMAX_MAX.
+		 *
+		 *   3. start_id + (count-1) -> end_id
+		 *      Overflows when start_id is near UINTMAX_MAX even after
+		 *      guards 1 and 2 pass.  Required on platforms where
+		 *      uintmax_t is wider than the sub-UID value space.
+		 *
+		 * Omitting any one leaves a range-escape vector on some
+		 * possible arch/config combinations.
+		 */
+		uintmax_t product = 0;
+		uintmax_t start_id = 0;
+		uintmax_t end_id = 0;
+
+		if (__builtin_mul_overflow (uid_offset, count, &product)) {
+			fprintf (log_get_logfd (),
+			         _("%s: Overflow calculating deterministic"
+			           " subordinate UID range for UID %lu\n"),
+			         log_get_progname (), (unsigned long)uid);
+			return -1;
+		}
+
+		if (__builtin_add_overflow (sub_uid_min, product, &start_id)) {
+			fprintf (log_get_logfd (),
+			         _("%s: Overflow calculating deterministic"
+			           " subordinate UID range for UID %lu\n"),
+			         log_get_progname (), (unsigned long)uid);
+			return -1;
+		}
+
+		if (__builtin_add_overflow (start_id, count - 1, &end_id)) {
+			fprintf (log_get_logfd (),
+			         _("%s: Overflow calculating deterministic"
+			           " subordinate UID range for UID %lu\n"),
+			         log_get_progname (), (unsigned long)uid);
+			return -1;
+		}
+
+		if (end_id > sub_uid_max) {
+			fprintf (log_get_logfd (),
+			         _("%s: Deterministic subordinate UID range"
+			           " for UID %lu exceeds SUB_UID_MAX (%lu)\n"),
+			         log_get_progname (),
+			         (unsigned long)uid, sub_uid_max);
+			return -1;
+		}
+
+		*range_start = (id_t)start_id;
+		*range_count = count;
+		return 0;
+	}
+
+	/*
+	 * UNSAFE_SUB_UID_DETERMINISTIC_WRAP MODE
+	 *
+	 * Promote to uintmax_t before multiplying to avoid truncation on
+	 * 32-bit platforms where unsigned long is 32 bits.  The modulo
+	 * folds the result back into [0, space) before adding min.
+	 */
+	uintmax_t logical_offset = (uintmax_t)uid_offset * (uintmax_t)count;
+
+	*range_start = (id_t)(sub_uid_min + (unsigned long)(logical_offset % space));
+	*range_count = count;
+	return 0;
+}
+
+/*
  * find_new_sub_uids_linear - Find an unused subordinate UID range via
  * linear search.
  *
@@ -73,6 +242,9 @@ int find_new_sub_uids (uid_t uid, id_t *range_start, unsigned long *range_count)
 		errno = EINVAL;
 		return -1;
 	}
+
+	if (getdef_bool ("SUB_UID_DETERMINISTIC"))
+		return find_new_sub_uids_deterministic (uid, range_start, range_count);
 
 	return find_new_sub_uids_linear (range_start, range_count);
 }
