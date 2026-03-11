@@ -297,21 +297,19 @@ static int subordinate_range_cmp (const void *p1, const void *p2)
 }
 
 /*
- * subid_owner_match: test whether two values refer to the same user.
+ * subid_owner_match: test whether two user identifiers refer to the same user.
  *
- * @a: first owner (username or numeric UID)
- * @b: second owner (username or numeric UID)
+ * @a: user identifier (username or numeric UID string)
+ * @b: user identifier (username or numeric UID string)
  *
- * Both strings * are resolved to uid_t via getpwnam(3)
- * and compared numerically.
- * This should account for users with overlaping UIDs.
+ * Each identifier is resolved to uid_t via getpwnam(3) and compared
+ * numerically. Accepts usernames, numeric UIDs, or a mix of both.
  *
- * We do not perform a streq(3) on the passed strings themselves.
- * In this way we ensure the user is resolvable on the system
- * eliminating the ability to return results from deleted users
- * with stale entries.
+ * Numeric resolution ensures stale entries for deleted users cannot
+ * produce false matches, and handles systems with overlapping UIDs.
  *
- * Return false if no match or either string cannot be resolved.
+ * Returns false if either identifier cannot be resolved, or if the
+ * resolved UIDs do not match.
  */
 static bool
 subid_owner_match(const char *a, const char *b)
