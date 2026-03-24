@@ -241,6 +241,52 @@ SUB_UID_MAX		600100000
 SUB_UID_COUNT		    65536
 
 #
+# Enable deterministic subordinate UID allocation based on the user's UID.
+# When set to "yes", subordinate UID ranges are calculated using a
+# deterministic formula instead of searching for the next free range:
+#
+#   start = SUB_UID_MIN + ((UID - UID_MIN) * SUB_UID_COUNT)
+#
+# This ensures the same UID always receives the same subordinate UID range
+# on every system, making it suitable for environments with centralized
+# user management (LDAP, NIS, etc.) or synchronized UIDs across systems.
+#
+# WARNING: Do not mix deterministic and sequential (default) allocation
+# on the same system or across systems sharing /etc/subuid. Mixing
+# methods will cause subordinate ID range conflicts and overlaps.
+#
+# Default: no
+#
+#SUB_UID_DETERMINISTIC	no
+
+#
+# Allow deterministic subordinate UID calculation to wrap around using
+# modulo arithmetic when a UID would overflow the configured subordinate
+# ID space. Only effective when SUB_UID_DETERMINISTIC is "yes".
+#
+# WARNING: SECURITY RISK - MAY CAUSE RANGE OVERLAPS AND PRIVILEGE ESCALATION!
+#
+# When enabled (WRAP MODE), the subordinate ID space is treated as a ring
+# buffer. Uses modulo arithmetic to handle overflow. May cause range
+# overlaps between users.
+#
+# OVERLAP EXAMPLE (why this is dangerous):
+#   With SUB_UID_MIN=100000, SUB_UID_MAX=200000, SUB_UID_COUNT=65536:
+#     Space available: 100001 subordinate UIDs
+#     Max users without overlap: 1 user
+#     User A (UID 1000): range [100000, 165535]
+#     User B (UID 1001): range wraps and OVERLAPS with User A!
+#     User B's container can now access User A's files!
+#
+# When disabled (STRICT MODE, default), any arithmetic overflow is a hard
+# error. Ensures non-overlapping, monotonic allocation. Suitable for
+# production environments.
+#
+# Default: no
+#
+#UNSAFE_SUB_UID_DETERMINISTIC_WRAP	no
+
+#
 # Min/max values for automatic gid selection in groupadd(8)
 #
 GID_MIN			 1000
@@ -252,6 +298,52 @@ SYS_GID_MAX		  999
 SUB_GID_MIN		   100000
 SUB_GID_MAX		600100000
 SUB_GID_COUNT		    65536
+
+#
+# Enable deterministic subordinate GID allocation based on the user's UID.
+# When set to "yes", subordinate GID ranges are calculated using a
+# deterministic formula instead of searching for the next free range:
+#
+#   start = SUB_GID_MIN + ((UID - UID_MIN) * SUB_GID_COUNT)
+#
+# This ensures the same UID always receives the same subordinate GID range
+# on every system, making it suitable for environments with centralized
+# user management (LDAP, NIS, etc.) or synchronized UIDs across systems.
+#
+# WARNING: Do not mix deterministic and sequential (default) allocation
+# on the same system or across systems sharing /etc/subgid. Mixing
+# methods will cause subordinate ID range conflicts and overlaps.
+#
+# Default: no
+#
+#SUB_GID_DETERMINISTIC	no
+
+#
+# Allow deterministic subordinate GID calculation to wrap around using
+# modulo arithmetic when a UID would overflow the configured subordinate
+# ID space. Only effective when SUB_GID_DETERMINISTIC is "yes".
+#
+# WARNING: SECURITY RISK - MAY CAUSE RANGE OVERLAPS AND PRIVILEGE ESCALATION!
+#
+# When enabled (WRAP MODE), the subordinate ID space is treated as a ring
+# buffer. Uses modulo arithmetic to handle overflow. May cause range
+# overlaps between users.
+#
+# OVERLAP EXAMPLE (why this is dangerous):
+#   With SUB_GID_MIN=100000, SUB_GID_MAX=200000, SUB_GID_COUNT=65536:
+#     Space available: 100001 subordinate GIDs
+#     Max users without overlap: 1 user
+#     User A (UID 1000): range [100000, 165535]
+#     User B (UID 1001): range wraps and OVERLAPS with User A!
+#     User B's container can now access User A's files!
+#
+# When disabled (STRICT MODE, default), any arithmetic overflow is a hard
+# error. Ensures non-overlapping, monotonic allocation. Suitable for
+# production environments.
+#
+# Default: no
+#
+#UNSAFE_SUB_GID_DETERMINISTIC_WRAP	no
 
 #
 # Max number of login(1) retries if password is bad

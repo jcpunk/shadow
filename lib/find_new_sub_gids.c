@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include "prototypes.h"
 #include "subordinateio.h"
@@ -26,9 +27,13 @@
  * If successful, find_new_sub_gids provides a range of unused
  * user IDs in the [SUB_GID_MIN:SUB_GID_MAX] range.
  *
+ * When SUB_GID_DETERMINISTIC is enabled, the range is calculated
+ * deterministically from the user's UID using the formula:
+ *   start = SUB_GID_MIN + ((uid - UID_MIN) * SUB_GID_COUNT)
+ *
  * Return 0 on success, -1 if no unused GIDs are available.
  */
-int find_new_sub_gids (id_t *range_start, unsigned long *range_count)
+int find_new_sub_gids (uid_t uid, id_t *range_start, unsigned long *range_count)
 {
 	unsigned long min, max;
 	unsigned long count;
@@ -47,6 +52,87 @@ int find_new_sub_gids (id_t *range_start, unsigned long *range_count)
 				  " SUB_GID_MAX (%lu), SUB_GID_COUNT (%lu)\n"),
 			log_get_progname(), min, max, count);
 		return -1;
+	}
+
+	if (getdef_bool ("SUB_GID_DETERMINISTIC")) {
+		unsigned long uid_min;
+		unsigned long uid_offset;
+		unsigned long space;
+		bool allow_wrap;
+
+		uid_min = getdef_ulong ("UID_MIN", 1000UL);
+		allow_wrap = getdef_bool ("UNSAFE_SUB_GID_DETERMINISTIC_WRAP");
+
+		if ((unsigned long)uid < uid_min) {
+			(void) fprintf (log_get_logfd(),
+					_("%s: UID %lu is less than UID_MIN %lu,"
+					  " cannot calculate deterministic subordinate GIDs\n"),
+				log_get_progname(),
+				(unsigned long)uid, uid_min);
+			return -1;
+		}
+
+		uid_offset = (unsigned long)uid - uid_min;
+		space = max - min + 1;
+
+		if (count > space) {
+			(void) fprintf (log_get_logfd(),
+					_("%s: Not enough space for any subordinate GIDs"
+					  " (SUB_GID_MIN=%lu, SUB_GID_MAX=%lu,"
+					  " SUB_GID_COUNT=%lu)\n"),
+				log_get_progname(), min, max, count);
+			return -1;
+		}
+
+		if (!allow_wrap) {
+			unsigned long product;
+			unsigned long end;
+
+			if (__builtin_mul_overflow(uid_offset, count, &product)) {
+				(void) fprintf (log_get_logfd(),
+						_("%s: Overflow calculating deterministic"
+						  " subordinate GID range for UID %lu\n"),
+					log_get_progname(),
+					(unsigned long)uid);
+				return -1;
+			}
+
+			if (__builtin_add_overflow(min, product, &start)) {
+				(void) fprintf (log_get_logfd(),
+						_("%s: Overflow calculating deterministic"
+						  " subordinate GID range for UID %lu\n"),
+					log_get_progname(),
+					(unsigned long)uid);
+				return -1;
+			}
+
+			end = (unsigned long)start + count - 1;
+			if (end > max) {
+				(void) fprintf (log_get_logfd(),
+						_("%s: Deterministic subordinate GID range"
+						  " for UID %lu exceeds SUB_GID_MAX (%lu)\n"),
+					log_get_progname(),
+					(unsigned long)uid, max);
+				return -1;
+			}
+		} else {
+			/*
+			 * WRAP MODE
+			 *
+			 * WARNING: SECURITY RISK - MAY CAUSE RANGE OVERLAPS!
+			 *
+			 * Treat the ID space as a ring and normalize the
+			 * logical offset using modulo arithmetic.
+			 */
+			uint64_t logical_offset;
+
+			logical_offset = (uint64_t)uid_offset * (uint64_t)count;
+			start = (id_t)(min + (unsigned long)(logical_offset % space));
+		}
+
+		*range_start = start;
+		*range_count = count;
+		return 0;
 	}
 
 	start = sub_gid_find_free_range(min, max, count);
